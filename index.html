@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Restaurant QR Order</title>
+  <style>
+    body { font-family: Arial; padding: 10px; }
+    h2 { background:#b71c1c; color:white; padding:10px; }
+    .item { border-bottom:1px solid #ccc; padding:10px; }
+    button { padding:5px 10px; }
+  </style>
+</head>
+<body>
+
+<h2>🍽 Restaurant QR Order</h2>
+
+<p>Table: <span id="tableNo"></span></p>
+
+<h3>Menu</h3>
+<div id="menu">Loading menu...</div>
+
+<h3>Total: ₹<span id="total">0</span></h3>
+<button onclick="placeOrder()">Order Place</button>
+
+<!-- Firebase SDK v8 -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+<script>
+  // ✅ EXACT Firebase config (copied from your console)
+  var firebaseConfig = {
+    apiKey: "AIzaSyCgaZ9DqGuszvycCRuJceNvg7G86OTc9oU",
+    authDomain: "restaurant-55333.firebaseapp.com",
+    projectId: "restaurant-55333",
+    storageBucket: "restaurant-55333.appspot.com",
+    messagingSenderId: "279347685173",
+    appId: "1:279347685173:web:cb1a120e25e3adb856ce7c"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  var db = firebase.firestore();
+
+  // Table number
+  const params = new URLSearchParams(window.location.search);
+  const table = params.get("table") || "1";
+  document.getElementById("tableNo").innerText = table;
+
+  let total = 0;
+  let orderItems = [];
+
+  // 🔥 LOAD MENU FROM FIRESTORE
+  db.collection("menu")
+    .where("available", "==", true)
+    .get()
+    .then(snapshot => {
+      const menuDiv = document.getElementById("menu");
+      menuDiv.innerHTML = "";
+
+      if(snapshot.empty){
+        menuDiv.innerHTML = "No items available";
+        return;
+      }
+
+      snapshot.forEach(doc => {
+        const item = doc.data();
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <b>${item.name}</b> - ₹${item.price}
+          <button onclick="addItem('${item.name}', ${item.price})">Add</button>
+        `;
+        menuDiv.appendChild(div);
+      });
+    })
+    .catch(error => {
+      document.getElementById("menu").innerHTML = "Firebase error";
+      console.error("Firestore error:", error);
+    });
+
+  function addItem(name, price){
+    total += price;
+    document.getElementById("total").innerText = total;
+    orderItems.push({name, price});
+  }
+
+  function placeOrder(){
+    if(orderItems.length === 0){
+      alert("Item select karo");
+      return;
+    }
+
+    db.collection("orders").add({
+      table: table,
+      items: orderItems,
+      total: total,
+      status: "new",
+      time: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(()=>{
+      alert("Order sent to kitchen");
+      total = 0;
+      orderItems = [];
+      document.getElementById("total").innerText = 0;
+    });
+  }
+</script>
+
+</body>
+</html>
