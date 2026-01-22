@@ -2,105 +2,78 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Restaurant QR Order</title>
+  <title>Restaurant Menu</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
-    body { font-family: Arial; padding: 10px; }
-    h2 { background:#b71c1c; color:white; padding:10px; }
-    .item { border-bottom:1px solid #ccc; padding:10px; }
-    button { padding:5px 10px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+    }
+    .item {
+      background: white;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 18px;
+    }
   </style>
 </head>
+
 <body>
 
-<h2>🍽 Restaurant QR Order</h2>
+<h1>🍽️ Menu</h1>
+<div id="menu">Loading...</div>
 
-<p>Table: <span id="tableNo"></span></p>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-<h3>Menu</h3>
-<div id="menu">Loading menu...</div>
-
-<h3>Total: ₹<span id="total">0</span></h3>
-<button onclick="placeOrder()">Order Place</button>
-
-<!-- Firebase SDK v8 -->
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-
-<script>
-  // ✅ EXACT Firebase config (copied from your console)
-  var firebaseConfig = {
+  // 🔥 Firebase config (tumhara)
+  const firebaseConfig = {
     apiKey: "AIzaSyCgaZ9DqGuszvycCRuJceNvg7G86OTc9oU",
     authDomain: "restaurant-55333.firebaseapp.com",
     projectId: "restaurant-55333",
-    storageBucket: "restaurant-55333.appspot.com",
+    storageBucket: "restaurant-55333.firebasestorage.app",
     messagingSenderId: "279347685173",
     appId: "1:279347685173:web:cb1a120e25e3adb856ce7c"
   };
 
-  firebase.initializeApp(firebaseConfig);
-  var db = firebase.firestore();
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-  // Table number
-  const params = new URLSearchParams(window.location.search);
-  const table = params.get("table") || "1";
-  document.getElementById("tableNo").innerText = table;
+  const menuDiv = document.getElementById("menu");
+  menuDiv.innerHTML = "";
 
-  let total = 0;
-  let orderItems = [];
+  try {
+    const snapshot = await getDocs(collection(db, "menu"));
 
-  // 🔥 LOAD MENU FROM FIRESTORE
-  db.collection("menu")
-    .where("available", "==", true)
-    .get()
-    .then(snapshot => {
-      const menuDiv = document.getElementById("menu");
-      menuDiv.innerHTML = "";
-
-      if(snapshot.empty){
-        menuDiv.innerHTML = "No items available";
-        return;
-      }
-
-      snapshot.forEach(doc => {
-        const item = doc.data();
-        const div = document.createElement("div");
-        div.className = "item";
-        div.innerHTML = `
-          <b>${item.name}</b> - ₹${item.price}
-          <button onclick="addItem('${item.name}', ${item.price})">Add</button>
-        `;
-        menuDiv.appendChild(div);
-      });
-    })
-    .catch(error => {
-      document.getElementById("menu").innerHTML = "Firebase error";
-      console.error("Firestore error:", error);
-    });
-
-  function addItem(name, price){
-    total += price;
-    document.getElementById("total").innerText = total;
-    orderItems.push({name, price});
-  }
-
-  function placeOrder(){
-    if(orderItems.length === 0){
-      alert("Item select karo");
-      return;
+    if (snapshot.empty) {
+      menuDiv.innerHTML = "No items found";
     }
 
-    db.collection("orders").add({
-      table: table,
-      items: orderItems,
-      total: total,
-      status: "new",
-      time: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(()=>{
-      alert("Order sent to kitchen");
-      total = 0;
-      orderItems = [];
-      document.getElementById("total").innerText = 0;
+    snapshot.forEach(doc => {
+      const data = doc.data();
+
+      if (data.available) {
+        menuDiv.innerHTML += `
+          <div class="item">
+            <span>${data.name}</span>
+            <strong>₹${data.price}</strong>
+          </div>
+        `;
+      }
     });
+
+  } catch (err) {
+    console.error(err);
+    menuDiv.innerHTML = "Error loading menu";
   }
 </script>
 
