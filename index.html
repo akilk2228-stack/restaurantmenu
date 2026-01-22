@@ -1,43 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Restaurant QR Order</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background: #f5f5f5;
-    }
-    header {
-      background: #b71c1c;
-      color: white;
-      padding: 12px;
-      text-align: center;
-      font-size: 20px;
-    }
-    .box {
-      background: white;
-      margin: 10px;
-      padding: 10px;
-      border-radius: 6px;
-    }
-    .menu-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #ddd;
-      padding: 8px 0;
-    }
-    button {
-      padding: 5px 10px;
-    }
-    .total {
-      font-size: 18px;
-      font-weight: bold;
-    }
+    body { font-family: Arial; margin: 0; background: #f5f5f5; }
+    header { background: #b71c1c; color: white; padding: 12px; font-size: 20px; }
+    .box { padding: 15px; }
+    .item { background: white; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+    button { padding: 6px 10px; }
   </style>
 </head>
 
@@ -46,66 +19,45 @@
 <header>🍽 Restaurant QR Order</header>
 
 <div class="box">
-  <div>Table: <span id="tableNo">-</span></div><br>
-  <input id="customerName" placeholder="Enter your name" style="width:100%;padding:6px;">
-</div>
+  <p><b>Table:</b> <span id="tableNo"></span></p>
 
-<div class="box">
+  <input id="custName" placeholder="Your Name" style="width:100%;padding:8px"/>
+
   <h3>Menu</h3>
   <div id="menu"></div>
+
+  <h3>Total: ₹<span id="total">0</span></h3>
+
+  <button onclick="placeOrder()">Order Place</button>
 </div>
 
-<div class="box">
-  <div class="total">Total: ₹<span id="total">0</span></div><br>
-  <button onclick="placeOrder()">Place Order</button>
-</div>
-
-<!-- Firebase -->
+<!-- Firebase CDN -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <script>
-  // 🔥 YOUR FIREBASE CONFIG
-  const firebaseConfig = {
-    apiKey: "AIzaSyCgaZ9DqGuszvycCRuJceNvg7G86OTc9oU",
-    authDomain: "restaurant-55333.firebaseapp.com",
-    projectId: "restaurant-55333",
-    storageBucket: "restaurant-55333.appspot.com",
-    messagingSenderId: "279347685173",
-    appId: "1:279347685173:web:cb1a120e25e3adb856ce7c"
-  };
+/* 🔥 FIREBASE CONFIG (TUMHARA) */
+const firebaseConfig = {
+  apiKey: "AIzaSyCgaZ9DqGuszvycCRuJceNvg7G86OTc9oU",
+  authDomain: "restaurant-55333.firebaseapp.com",
+  projectId: "restaurant-55333",
+  storageBucket: "restaurant-55333.appspot.com",
+  messagingSenderId: "279347685173",
+  appId: "1:279347685173:web:cb1a120e25e3adb856ce7c"
+};
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-  let cart = [];
-  let total = 0;
+/* TABLE NUMBER FROM QR */
+const params = new URLSearchParams(window.location.search);
+const table = params.get("table") || "1";
+document.getElementById("tableNo").innerText = table;
 
-  // TABLE FROM URL
-  const params = new URLSearchParams(window.location.search);
-  const table = params.get("table") || "1";
-  document.getElementById("tableNo").innerText = table;
+let total = 0;
+let cart = [];
 
-  // LOAD MENU
-  db.collection("menu").where("available", "==", true)
-    .onSnapshot(snapshot => {
-      const menuDiv = document.getElementById("menu");
-      menuDiv.innerHTML = "";
-
-      snapshot.forEach(doc => {
-        const item = doc.data();
-
-        const div = document.createElement("div");
-        div.className = "menu-item";
-        div.innerHTML = `
-          <div>${item.name} - ₹${item.price}</div>
-          <button onclick="addItem('${item.name}', ${item.price})">Add</button>
-        `;
-        menuDiv.appendChild(div);
-      });
-    });
-
-  function addItem(name, price) {
-    cart.push({ name, price });
-    total += price;
-    document.getElement
+/* LOAD MENU */
+db.collection("menu").where("available","==",true)
+.onSnapshot(snapshot => {
+  const menuDiv = document.get
