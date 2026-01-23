@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>cozy food cafe</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- ✅ PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ff9800">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 15px;
+    }
+    h2 {
+      color: #ff9800;
+    }
+    button {
+      padding: 10px 15px;
+      background: #ff9800;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    input {
+      padding: 8px;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>🍽️ cozy food cafe</h2>
+
+<p>Table No: <b id="tableNo"></b></p>
+
+<input id="name" placeholder="Enter your name">
+
+<h3>Menu</h3>
+<div id="menu">Loading menu...</div>
+
+<br>
+<button onclick="placeOrder()">Place Order</button>
+<p id="msg"></p>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+  import {
+    getFirestore,
+    collection,
+    getDocs,
+    addDoc,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+  // 🔥 FIREBASE CONFIG
+  const firebaseConfig = {
+    apiKey: "AIzaSyCgaZ9DqGuszvycCRuJceNvg7G86OTc9oU",
+    authDomain: "restaurant-55333.firebaseapp.com",
+    projectId: "restaurant-55333",
+    storageBucket: "restaurant-55333.firebasestorage.app",
+    messagingSenderId: "279347685173",
+    appId: "1:279347685173:web:cb1a120e25e3adb856ce7c"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // 🔹 TABLE AUTO DETECT (QR)
+  const params = new URLSearchParams(window.location.search);
+  const tableNumber = params.get("table") || 1;
+  document.getElementById("tableNo").innerText = tableNumber;
+
+  // 🔹 LOAD MENU
+  const menuDiv = document.getElementById("menu");
+  menuDiv.innerHTML = "";
+
+  const snapshot = await getDocs(collection(db, "menu"));
+
+  if (snapshot.empty) {
+    menuDiv.innerHTML = "No menu items available";
+  }
+
+  snapshot.forEach(doc => {
+    const i = doc.data();
+
+    const disabled = i.available === false ? "disabled" : "";
+    const note = i.available === false ? "(Not Available)" : "";
+
+    menuDiv.innerHTML += `
+      <label>
+        <input type="checkbox" value="${i.name}|${i.price}" ${disabled}>
+        ${i.name} - ₹${i.price} ${note}
+      </label><br>
+    `;
+  });
+
+  // 🔹 PLACE ORDER
+  window.placeOrder = async () => {
+    const name = document.getElementById("name").value.trim();
+    const checked = [...document.querySelectorAll("input[type=checkbox]:checked")];
+
+    if (!name) {
+      alert("Please enter your name");
+      return;
+    }
+
+    if (checked.length === 0) {
+      alert("Please select at least one available item");
+      return;
+    }
+
+    const items = checked.map(c => {
+      const [iname, price] = c.value.split("|");
+      return { name: iname, price: Number(price) };
+    });
+
+    try {
+      const docRef = await addDoc(collection(db, "orders"), {
+        customerName: name,
+        tableNumber: Number(tableNumber),
+        items: items,
+        status: "pending",
+        readyTime: null,
+        createdAt: serverTimestamp()
+      });
+
+      document.getElementById("msg").innerText = "✅ Order Placed";
+
+      // 🔹 Redirect to live status
+      window.location.href = `status.html?orderId=${docRef.id}`;
+
+    } catch (e) {
+      console.error(e);
+      alert("❌ Order failed");
+    }
+  };
+</script>
+
+<!-- ✅ SERVICE WORKER -->
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js");
+  }
+</script>
+
+</body>
+</html>
