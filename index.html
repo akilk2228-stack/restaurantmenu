@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cozy Food Cafe</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+body{margin:0;font-family:Poppins,sans-serif;background:#f5f5f5}
+header{background:#e23744;color:#fff;padding:16px;font-size:20px;font-weight:600}
+.container{padding:14px;padding-bottom:100px}
+.banner{
+  background:linear-gradient(135deg,#ff7043,#e23744);
+  color:#fff;border-radius:16px;padding:14px;margin-bottom:14px
+}
+.table{font-size:14px;color:#444;margin-bottom:10px}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid #ddd;margin-bottom:12px}
+.category{font-size:18px;font-weight:600;margin:18px 0 10px}
+.card{
+  background:#fff;border-radius:16px;padding:12px;margin-bottom:12px;
+  box-shadow:0 6px 16px rgba(0,0,0,.08);
+  animation:fadeIn .4s ease
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+.row{display:flex;justify-content:space-between;align-items:center}
+img{width:70px;height:70px;border-radius:12px;object-fit:cover}
+.badge{font-size:11px;padding:4px 10px;border-radius:20px;font-weight:500}
+.available{background:#e8f5e9;color:#2e7d32}
+.unavailable{background:#fce4ec;color:#c2185b}
+.qty{display:flex;align-items:center;gap:8px}
+.qty button{
+  width:28px;height:28px;border-radius:50%;
+  border:none;background:#e23744;color:#fff;font-size:16px
+}
+.qty span{min-width:20px;text-align:center}
+.disabled{opacity:.5}
+.cart-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  background:#e23744;color:#fff;
+  padding:14px;display:flex;justify-content:space-between;
+  align-items:center;font-size:16px
+}
+.cart-bar button{
+  background:#fff;color:#e23744;
+  border:none;padding:8px 14px;border-radius:20px
+}
+.small{font-size:12px;color:#666}
+</style>
+</head>
+
+<body>
+
+<header>🍽 Cozy Food Cafe</header>
+
+<div class="container">
+
+<div class="banner">
+🎉 Flat 10% off on orders above ₹299
+</div>
+
+<div class="table">Table No: <b id="tableNo">—</b></div>
+
+<input id="name" placeholder="Enter your name">
+<input id="search" placeholder="Search food… 🔍">
+
+<div id="menu"></div>
+
+</div>
+
+<div class="cart-bar" id="cartBar" style="display:none">
+<span id="cartInfo">0 items | ₹0</span>
+<button onclick="placeOrder()">Place Order</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {
+  getFirestore, collection, getDocs,
+  addDoc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+/* Firebase */
+const firebaseConfig={
+  apiKey:"AIzaSyCgaZ9DqGuszvycCRuJceNvg7G86OTc9oU",
+  authDomain:"restaurant-55333.firebaseapp.com",
+  projectId:"restaurant-55333"
+};
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+
+/* Table detect */
+let table="1";
+const p=new URLSearchParams(location.search);
+if(p.get("table")) table=p.get("table");
+tableNo.innerText=table;
+
+/* Cart */
+const cart={};
+const menuDiv=document.getElementById("menu");
+const cartBar=document.getElementById("cartBar");
+const cartInfo=document.getElementById("cartInfo");
+const search=document.getElementById("search");
+
+function updateCartUI(){
+  let qty=0,total=0;
+  Object.values(cart).forEach(i=>{
+    qty+=i.qty;
+    total+=i.qty*i.price;
+  });
+  if(qty>0){
+    cartBar.style.display="flex";
+    cartInfo.innerText=`${qty} items | ₹${total}`;
+  }else{
+    cartBar.style.display="none";
+  }
+}
+
+let fullMenu=[];
+
+/* Load Menu */
+async function loadMenu(){
+  const snap=await getDocs(collection(db,"menu"));
+  fullMenu=[];
+  snap.forEach(d=>fullMenu.push(d.data()));
+  renderMenu(fullMenu);
+}
+
+function renderMenu(data){
+  menuDiv.innerHTML="";
+  const grouped={};
+
+  data.forEach(m=>{
+    if(!grouped[m.category]) grouped[m.category]=[];
+    grouped[m.category].push(m);
+  });
+
+  for(const cat in grouped){
+    menuDiv.innerHTML+=`<div class="category">${cat}</div>`;
+    grouped[cat].forEach(m=>{
+      const available=m.available!==false;
+      if(!cart[m.name]) cart[m.name]={name:m.name,price:m.price,qty:0};
+
+      const div=document.createElement("div");
+      div.className="card "+(!available?"disabled":"");
+      div.innerHTML=`
+        <div class="row">
+          <div>
+            <b>${m.name}</b><br>
+            ₹${m.price}<br>
+            <span class="badge ${available?"available":"unavailable"}">
+              ${available?"Available":"Not Available"}
+            </span>
+          </div>
+          <img src="${m.image||'https://via.placeholder.com/70'}">
+        </div>
+        <div class="row" style="margin-top:8px">
+          ${
+            available
+            ? `<div class="qty">
+                <button>-</button>
+                <span>${cart[m.name].qty}</span>
+                <button>+</button>
+              </div>`
+            : `<span class="small">Unavailable</span>`
+          }
+        </div>
+      `;
+
+      if(available){
+        const [minus, , plus]=div.querySelectorAll("button");
+        const span=div.querySelector("span:nth-child(2)");
+        plus.onclick=()=>{
+          cart[m.name].qty++;
+          span.innerText=cart[m.name].qty;
+          updateCartUI();
+        };
+        minus.onclick=()=>{
+          if(cart[m.name].qty>0){
+            cart[m.name].qty--;
+            span.innerText=cart[m.name].qty;
+            updateCartUI();
+          }
+        };
+      }
+
+      menuDiv.appendChild(div);
+    });
+  }
+}
+
+search.oninput=()=>{
+  const q=search.value.toLowerCase();
+  renderMenu(fullMenu.filter(m=>m.name.toLowerCase().includes(q)));
+};
+
+loadMenu();
+
+/* Place Order */
+window.placeOrder=async()=>{
+  const name=document.getElementById("name").value.trim();
+  if(!name){alert("Enter name");return;}
+
+  const items=[];
+  Object.values(cart).forEach(i=>{
+    for(let x=0;x<i.qty;x++) items.push({name:i.name,price:i.price});
+  });
+  if(items.length===0){alert("Add items");return;}
+
+  await addDoc(collection(db,"orders"),{
+    customerName:name,
+    tableNumber:table,
+    items,
+    status:"pending",
+    createdAt:serverTimestamp()
+  });
+
+  location.href=`status.html?table=${table}`;
+};
+</script>
+
+</body>
+</html>
