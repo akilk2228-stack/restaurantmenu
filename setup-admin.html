@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Setup</title>
+</head>
+<body>
+
+<h2>Admin Setup</h2>
+<p>This page is for ONE TIME use only.</p>
+
+<button onclick="setupAdmin()">Create / Fix Admin</button>
+<p id="msg"></p>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {
+  getAuth,
+  signInWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  setDoc
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+/* Firebase config */
+const firebaseConfig = {
+  apiKey: "AIzaSyCgaZ9DqGuszvycCRuJceNvg7G86OTc9oU",
+  authDomain: "restaurant-55333.firebaseapp.com",
+  projectId: "restaurant-55333"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+async function setupAdmin() {
+  const email = "akilk2228@gmail.com";
+  const password = "12345678";
+  const msg = document.getElementById("msg");
+
+  try {
+    /* 1️⃣ LOGIN existing user */
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+
+    /* 2️⃣ FORCE role = admin */
+    await setDoc(doc(db, "users", cred.user.uid), {
+      email: email,
+      role: "admin"
+    });
+
+    msg.innerText = "✅ Admin role assigned successfully. You can delete this file now.";
+
+  } catch (err) {
+    msg.innerText = "❌ Error: " + err.message;
+  }
+}
+</script>
+
+</body>
+</html>
